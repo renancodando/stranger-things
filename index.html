@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#05070a">
+  <meta name="description" content="Uma experiência interativa não oficial inspirada no universo de Stranger Things.">
+  <title>Hawkins — Arquivo 1983</title>
+  <link rel="preload" href="assets/hero.webp" as="image">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <canvas id="spores" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="gateTitle">
+    <div class="gate__signal" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    <p class="eyebrow">HAWKINS, INDIANA · 1983</p>
+    <h1 id="gateTitle">A transmissão voltou.</h1>
+    <p>Alguma coisa atravessou. Entre com o som ligado e descubra o que Hawkins está tentando esconder.</p>
+    <button class="primary" id="enterExperience">ENTRAR EM HAWKINS <span>↗</span></button>
+    <button class="text-button" id="enterSilent">entrar sem áudio</button>
+    <small>Experiência de fã não oficial. Fones de ouvido recomendados.</small>
+  </div>
+
+  <header class="topbar" id="topbar">
+    <a class="brand" href="#inicio" aria-label="Hawkins — início"><strong>HAWKINS</strong><span>ARCHIVE / 1983</span></a>
+    <nav aria-label="Principal">
+      <a href="#inicio">INÍCIO</a><a href="#mapa">LOCAIS</a><a href="#arquivos">ARQUIVOS</a><a href="#outro-lado">OUTRO LADO</a>
+    </nav>
+    <div class="top-actions">
+      <div class="signal"><i></i><span>88.7 FM</span></div>
+      <button class="icon-button" id="soundToggle" aria-label="Ativar ou desativar áudio">◉</button>
+      <button class="menu-button" id="menuButton" aria-label="Abrir menu"><span></span><span></span></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="inicio" aria-label="Hawkins">
+      <div class="hero-layer hero-normal" aria-hidden="true"></div>
+      <div class="hero-layer hero-upside" id="upsideLayer" aria-hidden="true"></div>
+      <div class="hero-vignette" aria-hidden="true"></div>
+      <div class="flashlight" aria-hidden="true"></div>
+
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="dot"></span> TRANSMISSÃO 011 · SINAL INSTÁVEL</p>
+        <h2>Uma cidade.<br><em>Duas realidades.</em></h2>
+        <p class="lead">Explore Hawkins. Encontre as anomalias. Quando a cidade começar a falhar, não confie no que estiver vendo.</p>
+        <div class="hero-actions">
+          <a class="primary" href="#mapa">COMEÇAR A INVESTIGAÇÃO <span>↓</span></a>
+          <button class="secondary" id="tearReality">RASGAR A REALIDADE</button>
+        </div>
+      </div>
+
+      <aside class="transmission-card glass">
+        <div><span class="live-dot"></span> TRANSMISSÃO INTERROMPIDA</div>
+        <strong>NOV 06, 1983</strong>
+        <p>03:17 AM · Mirkwood Forest</p>
+        <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </aside>
+
+      <div class="hero-hint"><span>mova o ponteiro</span><i></i><span>revele o outro lado</span></div>
+    </section>
+
+    <section class="briefing" id="briefing">
+      <div class="section-index">01 / A CIDADE</div>
+      <div class="briefing-copy">
+        <p class="eyebrow">ALGO ESTÁ ERRADO</p>
+        <h2>Hawkins ainda parece normal.<br>Olhe por tempo suficiente.</h2>
+      </div>
+      <p class="body-copy">As luzes piscam sem motivo. Animais evitam a floresta. A energia cai sempre às 3:17. Há seis pontos de interesse, mas só algumas pistas atravessam as duas realidades.</p>
+    </section>
+
+    <section class="map-section" id="mapa">
+      <div class="map-shell" id="mapShell">
+        <img src="assets/map.webp" alt="Vista aérea noturna de Hawkins" width="1672" height="941" loading="lazy">
+        <div class="map-shade" aria-hidden="true"></div>
+
+        <div class="map-heading">
+          <p class="eyebrow">MAPA DE CAMPO / HAWKINS, IN</p>
+          <h2>Escolha onde procurar.</h2>
+          <p>Cada ponto guarda uma pista. Algumas só aparecem quando o sinal enfraquece.</p>
+        </div>
+
+        <button class="hotspot" style="--left:26%;--top:31%" data-place="forest"><span></span><b>MIRKWOOD</b></button>
+        <button class="hotspot" style="--left:29%;--top:52%" data-place="school"><span></span><b>ESCOLA</b></button>
+        <button class="hotspot" style="--left:72%;--top:67%" data-place="arcade"><span></span><b>ARCADE</b></button>
+        <button class="hotspot" style="--left:82%;--top:37%" data-place="lab"><span></span><b>LABORATÓRIO</b></button>
+        <button class="hotspot" style="--left:52%;--top:59%" data-place="town"><span></span><b>CENTRO</b></button>
+        <button class="hotspot" style="--left:54%;--top:24%" data-place="mystery"><span></span><b>CREEL</b></button>
+
+        <div class="case-progress glass">
+          <span>INVESTIGAÇÃO</span>
+          <strong><b id="clueCount">0</b>/6 pistas</strong>
+          <div class="progress"><i id="progressBar"></i></div>
+          <small id="progressStatus">Sinal estável. Por enquanto.</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="locations" id="arquivos">
+      <div class="section-heading">
+        <div><p class="eyebrow">ARQUIVOS RECUPERADOS</p><h2>Locais que lembram.</h2></div>
+        <p>Os registros mudam conforme você descobre pistas. Volte aos lugares depois de atravessar.</p>
+      </div>
+
+      <div class="location-grid">
+        <article class="location-card" data-place="forest" tabindex="0"><img src="assets/forest.webp" alt="Floresta de Mirkwood à noite" loading="lazy"><div><span>01 · FLORESTA</span><h3>Mirkwood</h3><p>O silêncio começa antes das árvores.</p></div></article>
+        <article class="location-card" data-place="arcade" tabindex="0"><img src="assets/arcade.webp" alt="Arcade de Hawkins à noite" loading="lazy"><div><span>02 · ARCADE</span><h3>Palace Arcade</h3><p>Uma máquina continua ligada depois do apagão.</p></div></article>
+        <article class="location-card" data-place="lab" tabindex="0"><img src="assets/lab.webp" alt="Laboratório de Hawkins" loading="lazy"><div><span>03 · RESTRITO</span><h3>Hawkins Lab</h3><p>O subsolo não aparece na planta.</p></div></article>
+        <article class="location-card" data-place="school" tabindex="0"><img src="assets/school.webp" alt="Escola de Hawkins" loading="lazy"><div><span>04 · ESCOLA</span><h3>Hawkins High</h3><p>As luzes piscam em uma sequência.</p></div></article>
+      </div>
+    </section>
+
+    <section class="rift-section" id="outro-lado">
+      <div class="rift-media">
+        <img src="assets/duality.webp" alt="Hawkins e seu reflexo sombrio" loading="lazy">
+        <div class="rift-pulse" aria-hidden="true"></div>
+      </div>
+      <div class="rift-copy">
+        <p class="eyebrow">02 / O OUTRO LADO</p>
+        <h2>O mesmo lugar.<br><em>Respirando errado.</em></h2>
+        <p>Quando três pistas forem encontradas, a frequência muda. O cenário permanece no mesmo lugar, mas alguma coisa começa a crescer por baixo dele.</p>
+        <button class="primary locked" id="crossGate" disabled>ENCONTRE 3 PISTAS <span>03</span></button>
+        <small id="gateStatus">A passagem ainda está fechada.</small>
+      </div>
+    </section>
+
+    <section class="finale" id="finale">
+      <div class="finale-bg" aria-hidden="true"></div>
+      <div class="finale-content">
+        <p class="eyebrow">FREQUÊNCIA 88.7 · ÚLTIMO REGISTRO</p>
+        <h2>Não desligue a luz.</h2>
+        <p>O que você encontrou em Hawkins não termina aqui. Toda vez que a página é aberta, a cidade parece um pouco diferente.</p>
+        <button class="secondary" id="resetCase">REINICIAR INVESTIGAÇÃO</button>
+      </div>
+      <footer><span>HAWKINS ARCHIVE © 1983—?</span><span>PROJETO DE FÃ NÃO OFICIAL</span><span>KEEP THE LIGHTS ON</span></footer>
+    </section>
+  </main>
+
+  <dialog class="place-dialog" id="placeDialog">
+    <button class="dialog-close" id="dialogClose" aria-label="Fechar">×</button>
+    <div class="dialog-media"><img id="dialogImage" alt=""></div>
+    <div class="dialog-copy">
+      <p class="eyebrow" id="dialogLabel"></p>
+      <h2 id="dialogTitle"></h2>
+      <p id="dialogText"></p>
+      <div class="evidence" id="dialogEvidence"></div>
+      <button class="primary" id="collectClue">REGISTRAR PISTA <span>＋</span></button>
+    </div>
+  </dialog>
+
+  <div class="mobile-nav" id="mobileNav" aria-hidden="true">
+    <a href="#inicio">INÍCIO</a><a href="#mapa">LOCAIS</a><a href="#arquivos">ARQUIVOS</a><a href="#outro-lado">OUTRO LADO</a>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
