@@ -1,91 +1,287 @@
-const $ = (s, root=document) => root.querySelector(s);
-const $$ = (s, root=document) => [...root.querySelectorAll(s)];
-const root = document.documentElement;
-const body = document.body;
-const hero = $('#inicio');
-const gate = $('#gate');
-const toast = $('#toast');
+const $ = (s, c = document) => c.querySelector(s);
+const $$ = (s, c = document) => [...c.querySelectorAll(s)];
 
 const places = {
-  forest:{label:'ARQUIVO 01 · MIRKWOOD',title:'Mirkwood Forest',image:'assets/forest.webp',text:'Às 03:17, todos os sons da mata desaparecem por exatamente onze segundos. O gravador continua funcionando, mas registra uma segunda respiração.',evidence:'EVIDÊNCIA: fita cassete 88.7 FM — ruído com padrão repetido em intervalos de 11 segundos.'},
-  school:{label:'ARQUIVO 02 · HAWKINS HIGH',title:'A escola',image:'assets/school.webp',text:'O corredor leste perde energia mesmo isolado da rede. As lâmpadas piscam em grupos de três, oito e sete.',evidence:'EVIDÊNCIA: sequência elétrica 3—8—7. Pode ser uma frequência ou coordenada.'},
-  arcade:{label:'ARQUIVO 03 · PALACE ARCADE',title:'Palace Arcade',image:'assets/arcade.webp',text:'Uma máquina sem ficha continua registrando pontuações durante os apagões. O nome no topo muda toda madrugada.',evidence:'EVIDÊNCIA: placar impossível — “RUN / 03:17 / RUN”. Sem alimentação externa.'},
-  lab:{label:'ARQUIVO 04 · RESTRITO',title:'Hawkins Lab',image:'assets/lab.webp',text:'A planta oficial termina no subsolo B2. O elevador, porém, possui um botão sem inscrição que desce por mais vinte e três segundos.',evidence:'EVIDÊNCIA: mapa parcial do nível B3. Uma sala circular foi apagada do documento.'},
-  town:{label:'ARQUIVO 05 · CENTRO',title:'Downtown Hawkins',image:'assets/town.webp',text:'Relógios eletrônicos de quatro lojas diferentes congelaram no mesmo minuto. Nenhum deles estava conectado.',evidence:'EVIDÊNCIA: 03:17:11 — horário repetido em todos os registros.'},
-  mystery:{label:'ARQUIVO 06 · CREEL',title:'Creel House',image:'assets/mystery.webp',text:'Vizinhos relatam um sino onde não há relógio funcionando. A gravação mostra uma frequência abaixo da audição humana.',evidence:'EVIDÊNCIA: onda de 19 Hz. O pico coincide com cada queda de energia em Hawkins.'}
+  forest: {
+    label: 'ARQUIVO 01 · MIRKWOOD FOREST', title: 'Mirkwood', cls: 'place-forest',
+    text: 'Às 03:17, todos os sons da floresta desaparecem ao mesmo tempo. Nem insetos, nem pássaros, nem vento.',
+    evidence: 'EVIDÊNCIA / 06 NOV 1983 — Uma gravação em 88.7 MHz contém três batidas metálicas e uma voz infantil sob o ruído.'
+  },
+  school: {
+    label: 'ARQUIVO 02 · HAWKINS HIGH', title: 'Hawkins High', cls: 'place-school',
+    text: 'O corredor leste perdeu energia quatro noites seguidas. As lâmpadas voltam em uma sequência que não parece aleatória.',
+    evidence: 'EVIDÊNCIA / PADRÃO 4-8-15-16 — O intervalo entre os pulsos coincide com as quedas de tensão registradas perto do laboratório.'
+  },
+  arcade: {
+    label: 'ARQUIVO 03 · PALACE ARCADE', title: 'Palace Arcade', cls: 'place-arcade',
+    text: 'Depois do fechamento, uma única máquina continua ligada. Não está conectada à tomada e exibe o mesmo placar desde o apagão.',
+    evidence: 'EVIDÊNCIA / TERMINAL 07 — O monitor mostra coordenadas de Mirkwood por exatamente onze segundos antes de reiniciar.'
+  },
+  lab: {
+    label: 'ARQUIVO 04 · ACESSO RESTRITO', title: 'Hawkins Lab', cls: 'place-lab',
+    text: 'A planta oficial termina no piso B2. O elevador, porém, possui um terceiro indicador que nunca aparece durante o dia.',
+    evidence: 'EVIDÊNCIA / SUBSOLO — Um registro rasurado menciona “barreira”, “eco biológico” e uma temperatura impossível.'
+  },
+  town: {
+    label: 'ARQUIVO 05 · DOWNTOWN', title: 'Downtown Hawkins', cls: 'place-town',
+    text: 'Os relógios de três lojas diferentes pararam no mesmo minuto. Nenhum deles voltou a funcionar.',
+    evidence: 'EVIDÊNCIA / 03:17 AM — A rede elétrica registrou consumo negativo durante 4,2 segundos.'
+  },
+  mystery: {
+    label: 'ARQUIVO 06 · CREEL HOUSE', title: 'Creel House', cls: 'place-mystery',
+    text: 'A casa está vazia, mas há movimento atrás das cortinas. Vizinhos dizem ouvir um relógio mesmo quando a energia está cortada.',
+    evidence: 'EVIDÊNCIA / FITA 12 — Quatro badaladas. Depois, silêncio. Depois, uma respiração que não pertence a quem estava gravando.'
+  }
 };
 
-let currentPlace = null;
-let found = new Set(JSON.parse(localStorage.getItem('hawkins-clues') || '[]'));
-let audio = null;
-let audioEnabled = false;
-let fullReality = false;
+const state = {
+  clues: new Set(JSON.parse(localStorage.getItem('hawkins-clues') || '[]')),
+  current: null,
+  crossed: localStorage.getItem('hawkins-crossed') === '1',
+  revealLocked: false,
+  audio: null
+};
 
-function showToast(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>toast.classList.remove('show'),2600)}
-function save(){localStorage.setItem('hawkins-clues',JSON.stringify([...found]));renderProgress()}
-function renderProgress(){
-  $('#clueCount').textContent=found.size;
-  $('#progressBar').style.width=`${found.size/6*100}%`;
-  $$('.hotspot').forEach(h=>h.classList.toggle('found',found.has(h.dataset.place)));
-  const status=$('#progressStatus');
-  status.textContent=found.size<3?'Sinal estável. Por enquanto.':found.size<6?'A frequência está mudando.':'Todas as anomalias registradas.';
-  const cross=$('#crossGate');
-  if(found.size>=3){cross.disabled=false;cross.classList.remove('locked');cross.innerHTML='ATRAVESSAR AGORA <span>↗</span>';$('#gateStatus').textContent='A passagem está respondendo.'}
+const intro = $('#intro');
+const dialog = $('#placeDialog');
+const dialogVisual = $('#dialogVisual');
+const clueCount = $('#clueCount');
+const progressBar = $('#progressBar');
+const progressStatus = $('#progressStatus');
+const crossGate = $('#crossGate');
+const gateStatus = $('#gateStatus');
+const toast = $('#toast');
+const hero = $('#inicio');
+
+function save() {
+  localStorage.setItem('hawkins-clues', JSON.stringify([...state.clues]));
+  localStorage.setItem('hawkins-crossed', state.crossed ? '1' : '0');
 }
-function openPlace(key){
-  const p=places[key]; if(!p)return; currentPlace=key;
-  $('#dialogImage').src=p.image;$('#dialogImage').alt=p.title;$('#dialogLabel').textContent=p.label;$('#dialogTitle').textContent=p.title;$('#dialogText').textContent=p.text;$('#dialogEvidence').textContent=p.evidence;
-  const btn=$('#collectClue');btn.textContent=found.has(key)?'PISTA JÁ REGISTRADA':'REGISTRAR PISTA ＋';btn.disabled=found.has(key);
-  $('#placeDialog').showModal();
+
+function message(text) {
+  toast.textContent = text;
+  toast.classList.add('show');
+  clearTimeout(message.timer);
+  message.timer = setTimeout(() => toast.classList.remove('show'), 2600);
 }
-$$('.hotspot,.location-card').forEach(el=>{
-  el.addEventListener('click',()=>openPlace(el.dataset.place));
-  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')openPlace(el.dataset.place)});
+
+function updateProgress() {
+  const count = state.clues.size;
+  clueCount.textContent = count;
+  progressBar.style.width = `${(count / 6) * 100}%`;
+  $$('.hotspot, .archive-card').forEach(el => el.classList.toggle('found', state.clues.has(el.dataset.place)));
+
+  if (count === 0) progressStatus.textContent = 'Sinal estável. Por enquanto.';
+  else if (count < 3) progressStatus.textContent = 'Interferência aumentando.';
+  else if (count < 6) progressStatus.textContent = 'A passagem está respondendo.';
+  else progressStatus.textContent = 'Todos os registros recuperados.';
+
+  if (count >= 3) {
+    crossGate.disabled = false;
+    crossGate.classList.remove('locked');
+    crossGate.textContent = state.crossed ? 'VOCÊ JÁ ATRAVESSOU' : 'ATRAVESSAR AGORA';
+    gateStatus.textContent = state.crossed ? 'A barreira não voltou ao normal.' : 'A frequência caiu para 03:17.';
+  } else {
+    crossGate.disabled = true;
+    crossGate.classList.add('locked');
+    crossGate.textContent = `ENCONTRE ${3 - count} ${3 - count === 1 ? 'PISTA' : 'PISTAS'}`;
+    gateStatus.textContent = 'A passagem ainda está fechada.';
+  }
+
+  document.body.classList.toggle('crossed', state.crossed);
+}
+
+function openPlace(id) {
+  const place = places[id];
+  if (!place) return;
+  state.current = id;
+  $('#dialogLabel').textContent = place.label;
+  $('#dialogTitle').textContent = place.title;
+  $('#dialogText').textContent = place.text;
+  $('#dialogEvidence').textContent = place.evidence;
+  dialogVisual.className = `dialog-visual ${place.cls}`;
+  const button = $('#collectClue');
+  button.textContent = state.clues.has(id) ? 'PISTA JÁ REGISTRADA' : 'REGISTRAR PISTA';
+  button.disabled = state.clues.has(id);
+  dialog.showModal();
+  pulseAudio(84, .08);
+}
+
+$$('[data-place]').forEach(el => {
+  el.addEventListener('click', () => openPlace(el.dataset.place));
 });
-$('#dialogClose').addEventListener('click',()=>$('#placeDialog').close());
-$('#placeDialog').addEventListener('click',e=>{if(e.target===$('#placeDialog'))$('#placeDialog').close()});
-$('#collectClue').addEventListener('click',()=>{
-  if(!currentPlace||found.has(currentPlace))return; found.add(currentPlace);save();
-  $('#collectClue').textContent='PISTA REGISTRADA ✓';$('#collectClue').disabled=true;
-  showToast(found.size===3?'FREQUÊNCIA ALTERADA — UMA PASSAGEM RESPONDEU':`PISTA ${found.size}/6 REGISTRADA`);
-  if(found.size===3) burstSignal();
+
+$('#dialogClose').addEventListener('click', () => dialog.close());
+dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+
+$('#collectClue').addEventListener('click', () => {
+  if (!state.current || state.clues.has(state.current)) return;
+  state.clues.add(state.current);
+  save();
+  updateProgress();
+  $('#collectClue').textContent = 'PISTA REGISTRADA';
+  $('#collectClue').disabled = true;
+  message(`ARQUIVO ${String(state.clues.size).padStart(2, '0')} RECUPERADO`);
+  pulseAudio(52, .14);
+  setTimeout(() => dialog.close(), 850);
 });
 
-function pointerReality(e){
-  const r=hero.getBoundingClientRect(); const x=((e.clientX-r.left)/r.width)*100; const y=((e.clientY-r.top)/r.height)*100;
-  root.style.setProperty('--mx',`${Math.max(0,Math.min(100,x))}%`);root.style.setProperty('--my',`${Math.max(0,Math.min(100,y))}%`);
-  if(!fullReality) root.style.setProperty('--reveal',e.buttons?'26rem':'11rem');
-}
-hero.addEventListener('pointermove',pointerReality);hero.addEventListener('pointerdown',e=>{pointerReality(e);if(!fullReality)root.style.setProperty('--reveal','32rem')});hero.addEventListener('pointerup',()=>{if(!fullReality)root.style.setProperty('--reveal','11rem')});
-function toggleReality(force){fullReality=typeof force==='boolean'?force:!fullReality;hero.classList.toggle('reality-open',fullReality);body.classList.toggle('in-upside',fullReality);$('#tearReality').textContent=fullReality?'VOLTAR PARA HAWKINS':'RASGAR A REALIDADE';if(audioEnabled) glitch();}
-$('#tearReality').addEventListener('click',()=>toggleReality());
-$('#crossGate').addEventListener('click',()=>{toggleReality(true);hero.scrollIntoView({behavior:'smooth'});showToast('VOCÊ ATRAVESSOU. OS ARQUIVOS MUDARAM.')});
-$('#resetCase').addEventListener('click',()=>{found.clear();save();toggleReality(false);showToast('INVESTIGAÇÃO REINICIADA')});
-
-function startExperience(withAudio){body.classList.remove('gate-open');gate.classList.add('hidden');if(withAudio)startAudio();setTimeout(()=>gate.remove(),900)}
-$('#enterExperience').addEventListener('click',()=>startExperience(true));$('#enterSilent').addEventListener('click',()=>startExperience(false));body.classList.add('gate-open');
-
-function startAudio(){
-  if(audioEnabled)return;audioEnabled=true;const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;const ctx=new AC();audio={ctx,nodes:[]};
-  const master=ctx.createGain();master.gain.value=.035;master.connect(ctx.destination);
-  [43.65,65.41].forEach((f,i)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type=i?'sine':'triangle';o.frequency.value=f;g.gain.value=i?.28:.18;o.connect(g).connect(master);o.start();audio.nodes.push(o)});
-  const buf=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*.12;const n=ctx.createBufferSource(),ng=ctx.createGain(),filter=ctx.createBiquadFilter();n.buffer=buf;n.loop=true;filter.type='bandpass';filter.frequency.value=950;ng.gain.value=.12;n.connect(filter).connect(ng).connect(master);n.start();audio.master=master;audio.noise=ng;audio.nodes.push(n);$('#soundToggle').classList.add('on');
-}
-function stopAudio(){if(!audio)return;audio.ctx.close();audio=null;audioEnabled=false;$('#soundToggle').classList.remove('on')}
-$('#soundToggle').addEventListener('click',()=>audioEnabled?stopAudio():startAudio());
-function glitch(){if(!audio)return;const {ctx,master}=audio;master.gain.cancelScheduledValues(ctx.currentTime);master.gain.setValueAtTime(master.gain.value,ctx.currentTime);master.gain.linearRampToValueAtTime(.12,ctx.currentTime+.08);master.gain.linearRampToValueAtTime(.035,ctx.currentTime+.65)}
-function burstSignal(){glitch();document.documentElement.animate([{filter:'none'},{filter:'contrast(1.7) hue-rotate(8deg)'},{filter:'none'}],{duration:700})}
-
-const topbar=$('#topbar');addEventListener('scroll',()=>topbar.classList.toggle('scrolled',scrollY>30),{passive:true});
-$('#menuButton').addEventListener('click',()=>{$('#mobileNav').classList.toggle('open');$('#mobileNav').setAttribute('aria-hidden',!$('#mobileNav').classList.contains('open'))});$$('#mobileNav a').forEach(a=>a.addEventListener('click',()=>$('#mobileNav').classList.remove('open')));
-
-if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
-  addEventListener('scroll',()=>{const y=scrollY;document.querySelector('.hero-normal').style.transform=`scale(1.045) translateY(${Math.min(24,y*.025)}px)`;document.querySelector('.hero-upside').style.transform=`scale(1.055) translateY(${Math.min(18,y*.018)}px)`},{passive:true});
+function setReveal(x, y, radius) {
+  hero.style.setProperty('--mx', `${x}px`);
+  hero.style.setProperty('--my', `${y}px`);
+  hero.style.setProperty('--reveal', radius);
 }
 
-const canvas=$('#spores'),ctx=canvas.getContext('2d');let spores=[];
-function resize(){const d=Math.min(devicePixelRatio,2);canvas.width=innerWidth*d;canvas.height=innerHeight*d;canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';ctx.setTransform(d,0,0,d,0,0);const count=Math.min(90,Math.round(innerWidth/18));spores=Array.from({length:count},()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.6+.2,v:Math.random()*.25+.08,dx:(Math.random()-.5)*.12,a:Math.random()*.45+.1}))}
-function animate(){ctx.clearRect(0,0,innerWidth,innerHeight);ctx.fillStyle='#d7d9cf';for(const s of spores){s.y-=s.v*(body.classList.contains('in-upside')?1.8:1);s.x+=s.dx;if(s.y<-5){s.y=innerHeight+5;s.x=Math.random()*innerWidth}ctx.globalAlpha=s.a;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()}requestAnimationFrame(animate)}
-if(!matchMedia('(prefers-reduced-motion: reduce)').matches){resize();animate();addEventListener('resize',resize)}
+hero.addEventListener('pointermove', e => {
+  if (state.revealLocked) return;
+  const r = hero.getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const y = e.clientY - r.top;
+  const size = matchMedia('(max-width: 700px)').matches ? '105px' : '180px';
+  setReveal(x, y, size);
+});
+hero.addEventListener('pointerleave', () => { if (!state.revealLocked) hero.style.setProperty('--reveal', '0px'); });
 
-renderProgress();
+$('#tearReality').addEventListener('click', () => {
+  state.revealLocked = !state.revealLocked;
+  hero.style.setProperty('--mx', '66%');
+  hero.style.setProperty('--my', '52%');
+  hero.style.setProperty('--reveal', state.revealLocked ? '145vmax' : '0px');
+  pulseAudio(38, .2);
+  message(state.revealLocked ? 'A REALIDADE ESTÁ CEDENDO' : 'SINAL RESTAURADO');
+});
+
+crossGate.addEventListener('click', () => {
+  if (state.clues.size < 3) return;
+  state.crossed = true;
+  state.revealLocked = true;
+  hero.style.setProperty('--reveal', '160vmax');
+  document.body.classList.add('crossed');
+  save();
+  updateProgress();
+  pulseAudio(31, .3);
+  message('VOCÊ ATRAVESSOU');
+  setTimeout(() => $('#finale').scrollIntoView({ behavior: 'smooth' }), 550);
+});
+
+$('#resetCase').addEventListener('click', () => {
+  state.clues.clear();
+  state.crossed = false;
+  state.revealLocked = false;
+  localStorage.removeItem('hawkins-clues');
+  localStorage.removeItem('hawkins-crossed');
+  hero.style.setProperty('--reveal', '0px');
+  updateProgress();
+  message('INVESTIGAÇÃO REINICIADA');
+  $('#inicio').scrollIntoView({ behavior: 'smooth' });
+});
+
+$('#menuButton').addEventListener('click', () => $('#mobileNav').classList.toggle('open'));
+$$('#mobileNav a').forEach(a => a.addEventListener('click', () => $('#mobileNav').classList.remove('open')));
+
+function enter(withAudio) {
+  intro.classList.add('is-hidden');
+  if (withAudio) startAudio();
+  setTimeout(() => intro.remove(), 1100);
+}
+$('#enterExperience').addEventListener('click', () => enter(true));
+$('#enterSilent').addEventListener('click', () => enter(false));
+
+function startAudio() {
+  if (state.audio) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+  const ctx = new AudioCtx();
+  const master = ctx.createGain();
+  master.gain.value = .055;
+  master.connect(ctx.destination);
+
+  const drone = ctx.createOscillator();
+  drone.type = 'sine';
+  drone.frequency.value = 43;
+  const droneGain = ctx.createGain();
+  droneGain.gain.value = .5;
+  drone.connect(droneGain).connect(master);
+  drone.start();
+
+  const second = ctx.createOscillator();
+  second.type = 'triangle';
+  second.frequency.value = 64.5;
+  const secondGain = ctx.createGain();
+  secondGain.gain.value = .14;
+  second.connect(secondGain).connect(master);
+  second.start();
+
+  const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * .22;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer; noise.loop = true;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass'; filter.frequency.value = 700;
+  const noiseGain = ctx.createGain(); noiseGain.gain.value = .13;
+  noise.connect(filter).connect(noiseGain).connect(master); noise.start();
+
+  state.audio = { ctx, master, drone, second };
+  $('#soundToggle').classList.add('on');
+}
+
+function pulseAudio(freq = 60, volume = .1) {
+  if (!state.audio) return;
+  const { ctx, master } = state.audio;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth'; osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + .55);
+  osc.connect(gain).connect(master); osc.start(); osc.stop(ctx.currentTime + .58);
+}
+
+$('#soundToggle').addEventListener('click', () => {
+  if (!state.audio) { startAudio(); return; }
+  const { ctx, master } = state.audio;
+  const muted = master.gain.value < .001;
+  master.gain.setTargetAtTime(muted ? .055 : .0001, ctx.currentTime, .04);
+  $('#soundToggle').classList.toggle('on', muted);
+});
+
+const canvas = $('#spores');
+const g = canvas.getContext('2d');
+let particles = [];
+function resizeCanvas() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = innerWidth * dpr; canvas.height = innerHeight * dpr;
+  canvas.style.width = `${innerWidth}px`; canvas.style.height = `${innerHeight}px`;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const count = Math.min(85, Math.max(28, Math.floor(innerWidth / 18)));
+  particles = Array.from({ length: count }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: Math.random() * 1.6 + .3, vx: Math.random() * .14 - .07, vy: Math.random() * .28 + .08, a: Math.random() * .38 + .08 }));
+}
+function drawSpores() {
+  g.clearRect(0, 0, innerWidth, innerHeight);
+  const red = document.body.classList.contains('crossed');
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.y > innerHeight + 4) { p.y = -4; p.x = Math.random() * innerWidth; }
+    if (p.x < -4) p.x = innerWidth + 4; if (p.x > innerWidth + 4) p.x = -4;
+    g.beginPath(); g.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    g.fillStyle = red ? `rgba(255,58,45,${p.a})` : `rgba(210,225,230,${p.a})`; g.fill();
+  });
+  requestAnimationFrame(drawSpores);
+}
+resizeCanvas(); drawSpores();
+addEventListener('resize', resizeCanvas, { passive: true });
+
+let lastScroll = 0;
+addEventListener('scroll', () => {
+  const y = scrollY;
+  document.querySelector('.topbar').style.background = y > 50 ? 'rgba(3,4,5,.88)' : '';
+  lastScroll = y;
+}, { passive: true });
+
+setInterval(() => {
+  if (document.hidden || Math.random() > .28) return;
+  document.body.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(.72)' }, { filter: 'brightness(1.08)' }, { filter: 'brightness(1)' }], { duration: 145 });
+}, 4800);
+
+updateProgress();
+if (state.crossed) hero.style.setProperty('--reveal', '160vmax');
